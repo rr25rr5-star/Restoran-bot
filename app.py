@@ -126,7 +126,8 @@ async def confirm(cb: types.CallbackQuery):
 # ---------- mini-app ----------
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
-    html = f"""
+    # f-string EMAS, shunchaki triple-quote – JS ${...} xavfsiz
+    html = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -135,51 +136,50 @@ async def mini_app(request: web.Request):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px}}
-    .dish{{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}}
-    button{{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}}
+    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px}
+    .dish{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+    button{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
   </style>
 </head>
 <body>
-  <h2>Menyu – Stol: {table}</h2>
+  <h2>Menyu – Stol: """ + table + """</h2>
   <div id="list"></div>
   <button id="send" style="margin-top:20px;width:100%">📤 Buyurtma yuborish</button>
   <script>
     const tg = window.Telegram.WebApp; tg.expand();
     const table = new URLSearchParams(location.search).get("table");
     let cart = [];
-    async function loadMenu(){{
+    async function loadMenu(){
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
-      data.forEach(it=>{{
+      data.forEach(it=>{
         const d=document.createElement('div');
         d.className='dish';
         d.innerHTML=`<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
                      <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>`;
         list.appendChild(d);
-      }});
-    }}
-    function add(id,name,price){{
-      cart.push({{id:id,name:name,price:price}});
+      });
+    }
+    function add(id,name,price){
+      cart.push({id:id,name:name,price:price});
       tg.showAlert(name + ' qo‘shildi!');
-    }}
-    document.getElementById('send').onclick = async ()=>{{
+    }
+    document.getElementById('send').onclick = async ()=>{
       if(!cart.length) return tg.showAlert('Savatcha bo‘sh!');
-      await fetch('/api/order',{{
+      await fetch('/api/order',{
         method:'POST',
-        headers:{{'Content-Type':'application/json'}},
-        body: JSON.stringify({{table:table, items:cart}})
-      }});
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({table:table, items:cart})
+      });
       tg.showAlert('Buyurtma yuborildi!');
       cart=[];
-    }};
+    };
     loadMenu();
   </script>
 </body>
 </html>"""
     return web.Response(text=html, content_type="text/html")
-
 # ---------- API ----------
 async def api_menu(request: web.Request):
     async with async_session() as s:
