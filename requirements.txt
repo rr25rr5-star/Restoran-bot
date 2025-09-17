@@ -1,7 +1,7 @@
 aiogram==3.1.1
-pydantic==2.3.0
-https://files.pythonhosted.org/packages/cp311/p/pydantic_core/pydantic_core-2.6.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-aiohttp==3.8.5
+pydantic==2.4.2
+pydantic-core==2.10.1
+aiohttp==3.8.6
 qrcode[pil]
 Pillow
 python-dotenv
