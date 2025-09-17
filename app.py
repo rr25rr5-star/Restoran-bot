@@ -137,11 +137,15 @@ async def lifespan(app: web.Application):
     await bot.delete_webhook()
     await engine.dispose()
 
-def create_app() -> web.Application:
+def create_app(argv=None):
     app = web.Application()
     app.cleanup_ctx.append(lifespan)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=f"/bot{BOT_TOKEN.split(':')[1]}")
     return app
 
+# ---------- entry point for aiohttp.web ----------
 if __name__ == "__main__":
-    web.run_app(create_app(), host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+    import sys
+    from aiohttp.web import main
+    sys.argv[0] = "aiohttp.web"
+    sys.exit(main(sys.argv))
