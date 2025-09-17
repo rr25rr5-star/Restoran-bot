@@ -7,6 +7,5 @@ Pillow
 python-dotenv
 sqlalchemy[asyncio]==2.0.23
 asyncpg
-psycopg2-binary          # <── yangi qator
 gunicorn
 uvicorn[standard]

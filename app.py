@@ -1,4 +1,8 @@
-import os, logging, asyncio, qrcode
+# app.py
+import os
+import logging
+import asyncio
+import qrcode
 from contextlib import asynccontextmanager
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -7,9 +11,10 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 from aiohttp import web
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Column, Integer, String, select, delete
 from dotenv import load_dotenv
 
+# ---------- env ----------
 load_dotenv()
 BOT_TOKEN    = os.getenv("BOT_TOKEN")
 ADMIN_ID     = int(os.getenv("ADMIN_ID"))
@@ -18,6 +23,13 @@ BOT_USERNAME = os.getenv("BOT_USERNAME")
 WEBHOOK_URL  = os.getenv("WEBHOOK_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# PostgreSQL URL ni asyncpg uchun moslang
+if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+logging.basicConfig(level=logging.INFO)
+
+# ---------- db ----------
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
@@ -28,16 +40,23 @@ class Menu(Base):
     name  = Column(String, nullable=False)
     price = Column(Integer, nullable=False)
 
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# ---------- bot ----------
 bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp  = Dispatcher()
 user_orders = {}
 
+# ---------- helpers ----------
 def generate_qr_codes():
     for t in [f"stol{i}" for i in range(1,6)]:
         link = f"https://t.me/{BOT_USERNAME}?start={t}"
         qrcode.make(link).save(f"{t}.png")
         print(f"{t}.png yaratildi")
 
+# ---------- handlers ----------
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     table = msg.text.split(maxsplit=1)[1] if len(msg.text.split())>1 else "Noma’lum"
@@ -103,28 +122,20 @@ async def confirm(cb: types.CallbackQuery):
     table = user_orders[uid]["table"]
     items = user_orders[uid]["items"]
     total = sum(p for _,p in items)
-    text = f"📥 Yangi buyurtma!\n🪑 Stol: {table}\n\n" + \
-           "\n".join(f"{i+1}. {n} - {p} so‘m" for i,(n,p) in enumerate(items)) + \
-           f"\n\n💰 Jami: {total} so‘m"
+    text = f"📥 Yangi buyurtma!\n🪑 Stol: {table}\n\n" + "\n".join(f"{i+1}. {n} - {p} so‘m" for i,(n,p) in enumerate(items)) + f"\n\n💰 Jami: {total} so‘m"
     await bot.send_message(ADMIN_GROUP, text)
     await cb.message.answer("✅ Buyurtmangiz qabul qilindi! Tez orada tayyor bo‘ladi.")
     user_orders[uid]["items"].clear()
 
-async def on_startup(app: web.Application):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    generate_qr_codes()
-    await bot.set_webhook(f"{WEBHOOK_URL}/bot{BOT_TOKEN.split(':')[1]}")
-
-async def on_shutdown(app: web.Application):
-    await bot.delete_webhook()
-    await engine.dispose()
-
+# ---------- webhook aiohttp ----------
 @asynccontextmanager
 async def lifespan(app: web.Application):
-    await on_startup(app)
+    await init_db()
+    generate_qr_codes()
+    await bot.set_webhook(f"{WEBHOOK_URL}/bot{BOT_TOKEN.split(':')[1]}")
     yield
-    await on_shutdown(app)
+    await bot.delete_webhook()
+    await engine.dispose()
 
 def create_app() -> web.Application:
     app = web.Application()
