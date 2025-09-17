@@ -140,18 +140,18 @@ async def mini_app(request: web.Request):
           data.forEach(item=>{{
             const div=document.createElement('div');
             div.className='dish';
-            div.innerHTML=`
-              <div>
-                <div><strong>${{item.name}}</strong></div>
-                <div>${{item.price}} so'm</div>
-              </div>
-              <button onclick="addCart(${item.id},'`+item.name+`',${item.price})">+</button>`;
+            div.innerHTML=
+              '<div>'+
+                '<div><strong>'+item.name+'</strong></div>'+
+                '<div>'+item.price+' so\'m</div>'+
+              '</div>'+
+              '<button onclick="addCart('+item.id+',\''+item.name+'\','+item.price+')">+</button>';
             list.appendChild(div);
           }});
         }}
 
         function addCart(id,name,price){{
-          cart.push({{id,name,price}});
+          cart.push({{id:id,name:name,price:price}});
           tg.showAlert(name + ' qo‘shildi!');
         }}
 
@@ -160,7 +160,7 @@ async def mini_app(request: web.Request):
           await fetch('/api/order', {{
             method: 'POST',
             headers: {{'Content-Type':'application/json'}},
-            body: JSON.stringify({{table, items: cart}})
+            body: JSON.stringify({{table:table, items: cart}})
           }});
           tg.showAlert('Buyurtma yuborildi!');
           cart = [];
