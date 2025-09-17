@@ -1,5 +1,9 @@
 # app.py
-import os, json, logging, asyncio, qrcode
+import os
+import json
+import logging
+import asyncio
+import qrcode
 from aiohttp import web
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -12,12 +16,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 BOT_TOKEN    = os.getenv("BOT_TOKEN")
-ADMIN_ID     = int(os.getenv("ADMIN_ID"))
-ADMIN_GROUP  = int(os.getenv("ADMIN_GROUP"))   # int bo‘lishi kerak
+ADMIN_ID     = int(os.getenv("ADMIN_ID") or 0)
+ADMIN_GROUP  = os.getenv("ADMIN_GROUP", "")   # @username yoki raqam
 BOT_USERNAME = os.getenv("BOT_USERNAME")
 WEBHOOK_URL  = os.getenv("WEBHOOK_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# postgres+asyncpg formatiga o‘tkazamiz
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
@@ -45,9 +50,17 @@ user_orders = {}
 def generate_qr_codes():
     os.makedirs("qr", exist_ok=True)
     for t in [f"stol{i}" for i in range(1, 6)]:
-        link = f"https://t.me/{BOT_USERNAME}?start={t}"   # <-- bo‘sh joy yo‘q
+        link = f"https://t.me/{BOT_USERNAME}?start={t}"
         qrcode.make(link).save(f"qr/{t}.png")
         logging.info("qr/%s.png yaratildi", t)
+
+# ---------- yordamchi yuborish ----------
+async def send_to_admin(text: str):
+    # username (@...) yoki ID bilan yuboramiz
+    if ADMIN_GROUP.startswith("@"):
+        await bot.send_message(ADMIN_GROUP, text, parse_mode="HTML")
+    else:
+        await bot.send_message(int(ADMIN_GROUP), text, parse_mode="HTML")
 
 # ---------- TG ----------
 @dp.message(Command("start"))
@@ -84,6 +97,31 @@ async def show_menu_cmd(msg: types.Message):
     text = "📋 Hozirgi menyu:\n\n" + \
            "\n".join(f"{i+1}. {r.name} – {r.price} so‘m" for i, r in enumerate(rows))
     await msg.answer(text)
+
+@dp.callback_query(lambda c: c.data.startswith("order:"))
+async def add_to_cart(cb: types.CallbackQuery):
+    _, item_id, table = cb.data.split(":")
+    async with async_session() as s:
+        r = (await s.execute(select(Menu).where(Menu.id == int(item_id)))).scalar_one()
+    uid = cb.from_user.id
+    user_orders.setdefault(uid, {"table": table, "items": []})["items"].append((r.name, r.price))
+    total = sum(p for _, p in user_orders[uid]["items"])
+    await cb.answer(f"➕ {r.name} savatchaga qo‘shildi. Jami: {total} so‘m", show_alert=True)
+
+@dp.callback_query(lambda c: c.data == "confirm_order")
+async def confirm(cb: types.CallbackQuery):
+    uid = cb.from_user.id
+    if uid not in user_orders or not user_orders[uid]["items"]:
+        return await cb.answer("❌ Savatchangiz bo‘sh!", show_alert=True)
+    table = user_orders[uid]["table"]
+    items = user_orders[uid]["items"]
+    total = sum(p for _, p in items)
+    text = (f"📥 Yangi buyurtma!\n🪑 Stol: <b>{table}</b>\n\n" +
+            "\n".join(f"{i+1}. {n} – {p} so‘m" for i, (n, p) in enumerate(items)) +
+            f"\n\n💰 Jami: <b>{total}</b> so‘m")
+    await send_to_admin(text)
+    await cb.message.answer("✅ Buyurtmangiz qabul qilindi! Tez orada tayyor bo‘ladi.")
+    user_orders[uid]["items"].clear()
 
 # ---------- mini-app ----------
 async def mini_app(request: web.Request):
@@ -156,7 +194,7 @@ async def api_order(request: web.Request):
     text = (f"📥 Yangi buyurtma (mini-app)!\n🪑 Stol: <b>{table}</b>\n\n" +
             "\n".join(f"{i+1}. {it['name']} – {it['price']} so‘m" for i, it in enumerate(items)) +
             f"\n\n💰 Jami: <b>{total}</b> so‘m")
-    await bot.send_message(ADMIN_GROUP, text, parse_mode="HTML")
+    await send_to_admin(text)
     return web.json_response({"ok": True})
 
 # ---------- webhook ----------
@@ -181,4 +219,6 @@ def create_app():
     return app
 
 if __name__ == "__main__":
-    web.run_app(create_app(), port=os.getenv("PORT", 8000))
+    import sys
+    from aiohttp.web import run_app
+    run_app(create_app(), port=int(os.getenv("PORT", 8000)))
