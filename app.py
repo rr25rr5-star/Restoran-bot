@@ -4,6 +4,7 @@ import json
 import logging
 import asyncio
 import qrcode
+from urllib.parse import quote
 from aiohttp import web
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -17,12 +18,11 @@ from dotenv import load_dotenv
 load_dotenv()
 BOT_TOKEN    = os.getenv("BOT_TOKEN")
 ADMIN_ID     = int(os.getenv("ADMIN_ID") or 0)
-ADMIN_GROUP  = os.getenv("ADMIN_GROUP", "")   # @username yoki raqam
+ADMIN_GROUP  = os.getenv("ADMIN_GROUP", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME")
 WEBHOOK_URL  = os.getenv("WEBHOOK_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# postgres+asyncpg formatiga o‘tkazamiz
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
@@ -56,18 +56,15 @@ def generate_qr_codes():
 
 # ---------- yordamchi yuborish ----------
 async def send_to_admin(text: str):
-    # username (@...) yoki ID bilan yuboramiz
     if ADMIN_GROUP.startswith("@"):
         await bot.send_message(ADMIN_GROUP, text, parse_mode="HTML")
     else:
         await bot.send_message(int(ADMIN_GROUP), text, parse_mode="HTML")
 
-# ---------- start_cmd ----------
+# ---------- TG ----------
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     table = msg.text.partition(" ")[2] or "Noma’lum"
-    # query ni encode qilamiz
-    from urllib.parse import quote
     safe_table = quote(table)
     web_app_url = f"{WEBHOOK_URL.rstrip('/')}/?table={safe_table}"
     web_app = InlineKeyboardMarkup(inline_keyboard=[
@@ -80,7 +77,6 @@ async def start_cmd(msg: types.Message):
         parse_mode="HTML",
         reply_markup=web_app)
 
-# ---------- add_item ----------
 @dp.message(Command("add"))
 async def add_item(msg: types.Message):
     if msg.from_user.id != ADMIN_ID:
@@ -133,8 +129,7 @@ async def confirm(cb: types.CallbackQuery):
 # ---------- mini-app ----------
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
-    # f-string EMAS, shunchaki triple-quote – JS ${...} xavfsiz
-    html = """
+    html = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -143,50 +138,73 @@ async def mini_app(request: web.Request):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px}
-    .dish{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
-    button{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
+    body{{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}}
+    .dish{{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}}
+    button{{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}}
+    .cart{{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}}
+    .cart-header{{font-weight:bold;margin-bottom:5px}}
+    .cart-item{{display:flex;justify-content:space-between;padding:2px 0}}
+    .cart-total{{font-weight:bold;margin-top:5px}}
   </style>
 </head>
 <body>
-  <h2>Menyu – Stol: """ + table + """</h2>
+  <h2>Menyu – Stol: {table}</h2>
   <div id="list"></div>
+  <div id="cart" class="cart">
+    <div class="cart-header">🛒 Savatcha</div>
+    <div id="cart-list"></div>
+    <div id="cart-total" class="cart-total">Jami: 0 so‘m</div>
+  </div>
   <button id="send" style="margin-top:20px;width:100%">📤 Buyurtma yuborish</button>
   <script>
     const tg = window.Telegram.WebApp; tg.expand();
     const table = new URLSearchParams(location.search).get("table");
     let cart = [];
-    async function loadMenu(){
+    async function loadMenu(){{
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
-      data.forEach(it=>{
+      data.forEach(it=>{{
         const d=document.createElement('div');
         d.className='dish';
         d.innerHTML=`<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
                      <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>`;
         list.appendChild(d);
-      });
-    }
-    function add(id,name,price){
-      cart.push({id:id,name:name,price:price});
+      }});
+    }}
+    function updateCart(){{
+      const listBox=document.getElementById('cart-list');
+      const totalBox=document.getElementById('cart-total');
+      listBox.innerHTML=''; let total=0;
+      cart.forEach((it,idx)=>{{
+        total+=it.price;
+        const row=document.createElement('div'); row.className='cart-item';
+        row.innerHTML=`<span>${it.name}</span><span>${it.price} so'm</span>`;
+        listBox.appendChild(row);
+      }});
+      totalBox.textContent=`Jami: ${total} so'm`;
+    }}
+    function add(id,name,price){{
+      cart.push({{id,name,price}});
       tg.showAlert(name + ' qo‘shildi!');
-    }
-    document.getElementById('send').onclick = async ()=>{
+      updateCart();
+    }}
+    document.getElementById('send').onclick = async ()=>{{
       if(!cart.length) return tg.showAlert('Savatcha bo‘sh!');
-      await fetch('/api/order',{
+      await fetch('/api/order',{{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({table:table, items:cart})
-      });
+        headers:{{'Content-Type':'application/json'}},
+        body: JSON.stringify({{table:table, items:cart}})
+      }});
       tg.showAlert('Buyurtma yuborildi!');
-      cart=[];
-    };
+      cart=[]; updateCart();
+    }};
     loadMenu();
   </script>
 </body>
 </html>"""
     return web.Response(text=html, content_type="text/html")
+
 # ---------- API ----------
 async def api_menu(request: web.Request):
     async with async_session() as s:
@@ -214,8 +232,7 @@ async def on_cleanup(app: web.Application):
     await bot.delete_webhook()
     await engine.dispose()
 
-# create_app() ni quyidagicha o‘zgartiring
-def create_app(argv=None):          # argv qabul qiladi, lekin ishlatilmaydi
+def create_app(argv=None):
     app = web.Application()
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
