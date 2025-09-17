@@ -1,8 +1,8 @@
-# render.yaml – Render.com "Blueprint" deploy fayli
 services:
   - type: web
-    name: restaurant-bot
+    name: restoran-bot
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:create_app() -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
@@ -23,4 +23,4 @@ services:
 
 databases:
   - name: restaurant_db
-    plan: starter  # bepul PostgreSQL
+    plan: basic-1gb   # <-- yangi plan
