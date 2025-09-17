@@ -140,7 +140,7 @@ async def confirm(cb: types.CallbackQuery):
 # ---------- client mini-app ----------
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
-    # JavaScript qismi f-string EMAS – oddiy qator
+    # CSS va JS – f-string EMAS, oddiy qator
     html = f"""
 <!DOCTYPE html>
 <html>
@@ -150,17 +150,17 @@ async def mini_app(request: web.Request):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}
-    .dish{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
-    button{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
-    .cart{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}
-    .cart-header{font-weight:bold;margin-bottom:5px}
-    .cart-item{display:flex;justify-content:space-between;padding:2px 0}
-    .cart-total{font-weight:bold;margin-top:5px}
+    body""" + """{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}
+    .dish""" + """{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+    button""" + """{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
+    .cart""" + """{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}
+    .cart-header""" + """{font-weight:bold;margin-bottom:5px}
+    .cart-item""" + """{display:flex;justify-content:space-between;padding:2px 0}
+    .cart-total""" + """{font-weight:bold;margin-top:5px}
   </style>
 </head>
 <body>
-  <h2>Menyu – Stol: """ + table + """</h2>
+  <h2>Menyu – """ + table + """</h2>
   <div id="list"></div>
   <div id="cart" class="cart">
     <div class="cart-header">🛒 Savatcha</div>
