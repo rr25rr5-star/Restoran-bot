@@ -62,36 +62,38 @@ async def send_to_admin(text: str):
     else:
         await bot.send_message(int(ADMIN_GROUP), text, parse_mode="HTML")
 
-# ---------- TG ----------
+# ---------- start_cmd ----------
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     table = msg.text.partition(" ")[2] or "Noma’lum"
+    # query ni encode qilamiz
+    from urllib.parse import quote
+    safe_table = quote(table)
+    web_app_url = f"{WEBHOOK_URL.rstrip('/')}/?table={safe_table}"
     web_app = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="📋 Menyu (mini-app)",
-            web_app=WebAppInfo(url=f"{WEBHOOK_URL}/?table={table}"))]
+            web_app=WebAppInfo(url=web_app_url))]
     ])
-    # old ReplyKeyboard ni tozalaymiz
     await msg.answer(
-        f"Salom 👋\n🪑 Stol: <b>{table}</b>",
+        f"Salom 👋\n🪑 Stol: <b>{table}</b>\nQuyidagi tugma orqali menyuni oching:",
         parse_mode="HTML",
-        reply_markup=types.ReplyKeyboardRemove())          # ← tozalash
-    await msg.answer(
-        "Quyidagi tugma orqali menyuni oching:",
         reply_markup=web_app)
 
+# ---------- add_item ----------
 @dp.message(Command("add"))
 async def add_item(msg: types.Message):
     if msg.from_user.id != ADMIN_ID:
-        return await msg.reply("❌ Siz admin emassiz!")
+        await msg.answer("❌ Siz admin emassiz!")
+        return
     try:
         _, name, price = msg.text.split(maxsplit=2)
         async with async_session() as s:
             s.add(Menu(name=name, price=int(price)))
             await s.commit()
-        await msg.reply(f"✅ Taom qo‘shildi: {name} – {price} so‘m")
+        await msg.answer(f"✅ Taom qo‘shildi: {name} – {price} so‘m")
     except Exception as e:
-        await msg.reply("❌ Foydalanish: /add Nomi Narxi")
+        await msg.answer("❌ Foydalanish: /add Nomi Narxi")
 
 @dp.message(Command("menu"))
 async def show_menu_cmd(msg: types.Message):
