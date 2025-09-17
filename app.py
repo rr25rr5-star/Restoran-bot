@@ -207,7 +207,8 @@ async def on_cleanup(app: web.Application):
     await bot.delete_webhook()
     await engine.dispose()
 
-def create_app():
+# create_app() ni quyidagicha o‘zgartiring
+def create_app(argv=None):          # argv qabul qiladi, lekin ishlatilmaydi
     app = web.Application()
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
