@@ -23,4 +23,8 @@ services:
 
 databases:
   - name: restaurant_db
+<<<<<<< Updated upstream:render.yaml
     plan: basic-1gb   # <-- yangi plan
+=======
+    plan: basic-1gb   # <-- yangi plan
+>>>>>>> Stashed changes:render.yaml.txt
