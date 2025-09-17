@@ -3,15 +3,14 @@ import os
 import logging
 import asyncio
 import qrcode
-from contextlib import asynccontextmanager
+from aiohttp import web
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, Integer, String, select
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import Command
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler
-from aiohttp import web
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, select, delete
 from dotenv import load_dotenv
 
 # ---------- env ----------
@@ -23,7 +22,6 @@ BOT_USERNAME = os.getenv("BOT_USERNAME")
 WEBHOOK_URL  = os.getenv("WEBHOOK_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# PostgreSQL URL ni asyncpg uchun moslang
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
@@ -60,9 +58,9 @@ def generate_qr_codes():
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     table = msg.text.split(maxsplit=1)[1] if len(msg.text.split())>1 else "Noma’lum"
-    kb = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton("🍽 Menyu", callback_data=f"menu:{table}")
-    ]])
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🍽 Menyu", callback_data=f"menu:{table}")]
+    ])
     await msg.answer(f"Salom 👋\n🪑 Stol: {table}\nBuyurtma berish uchun menyuni tanlang:", reply_markup=kb)
 
 @dp.message(Command("add"))
@@ -95,9 +93,9 @@ async def show_menu_cb(cb: types.CallbackQuery):
     if not rows:
         return await cb.message.answer("❌ Menyu bo‘sh. Admin taom qo‘shishi kerak.")
     for r in rows:
-        kb = InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton("🛒 Savatchaga qo‘shish", callback_data=f"order:{r.id}:{table}")
-        ]])
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🛒 Savatchaga qo‘shish", callback_data=f"order:{r.id}:{table}")]
+        ])
         await cb.message.answer(f"🍲 {r.name} - {r.price} so‘m", reply_markup=kb)
 
 @dp.callback_query(lambda c: c.data.startswith("order:"))
@@ -107,9 +105,9 @@ async def add_to_cart(cb: types.CallbackQuery):
         r = (await s.execute(select(Menu).where(Menu.id==int(item_id)))).scalar_one()
     uid = cb.from_user.id
     user_orders.setdefault(uid, {"table":table, "items":[]})["items"].append((r.name, r.price))
-    kb = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton("✅ Buyurtmani tasdiqlash", callback_data="confirm_order")
-    ]])
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Buyurtmani tasdiqlash", callback_data="confirm_order")]
+    ])
     await cb.message.answer(
         f"➕ Savatchaga qo‘shildi: {r.name} - {r.price} so‘m\n"
         f"🛒 Hozirgi buyurtmalar soni: {len(user_orders[uid]['items'])}", reply_markup=kb)
