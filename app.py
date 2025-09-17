@@ -37,6 +37,7 @@ class Menu(Base):
     id    = Column(Integer, primary_key=True)
     name  = Column(String, nullable=False)
     price = Column(Integer, nullable=False)
+    image = Column(String, nullable=True)
 
 async def init_db():
     async with engine.begin() as conn:
@@ -76,6 +77,16 @@ async def start_cmd(msg: types.Message):
         f"Salom 👋\n🪑 Stol: <b>{table}</b>\nQuyidagi tugma orqali menyuni oching:",
         parse_mode="HTML",
         reply_markup=web_app)
+
+@dp.message(Command("admin"))
+async def admin_cmd(msg: types.Message):
+    if msg.from_user.id != ADMIN_ID:
+        return await msg.answer("❌ Siz admin emassiz!")
+    await msg.answer(
+        "🛠️ Admin panel:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Admin panel (WebApp)", web_app=WebAppInfo(url=f"{WEBHOOK_URL.rstrip('/')}/admin"))]
+        ]))
 
 @dp.message(Command("add"))
 async def add_item(msg: types.Message):
@@ -126,11 +137,10 @@ async def confirm(cb: types.CallbackQuery):
     await cb.message.answer("✅ Buyurtmangiz qabul qilindi! Tez orada tayyor bo‘ladi.")
     user_orders[uid]["items"].clear()
 
-# ---------- mini-app ----------
+# ---------- client mini-app ----------
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
-    # f-string EMAS, shunchaki triple-quote – JS ${...} xavfsiz
-    html = """
+    html = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -139,17 +149,17 @@ async def mini_app(request: web.Request):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}
-    .dish{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
-    button{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
-    .cart{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}
-    .cart-header{font-weight:bold;margin-bottom:5px}
-    .cart-item{display:flex;justify-content:space-between;padding:2px 0}
-    .cart-total{font-weight:bold;margin-top:5px}
+    body{{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}}
+    .dish{{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}}
+    button{{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}}
+    .cart{{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}}
+    .cart-header{{font-weight:bold;margin-bottom:5px}}
+    .cart-item{{display:flex;justify-content:space-between;padding:2px 0}}
+    .cart-total{{font-weight:bold;margin-top:5px}}
   </style>
 </head>
 <body>
-  <h2>Menyu – Stol: """ + table + """</h2>
+  <h2>Menyu – Stol: {table}</h2>
   <div id="list"></div>
   <div id="cart" class="cart">
     <div class="cart-header">🛒 Savatcha</div>
@@ -160,47 +170,133 @@ async def mini_app(request: web.Request):
   <script>
     const tg = window.Telegram.WebApp; tg.expand();
     const table = new URLSearchParams(location.search).get("table");
-    let cart = [];
-    async function loadMenu(){
+    let cart = []; // {id,name,price,qty}
+
+    async function loadMenu(){{
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
-      data.forEach(it=>{
+      data.forEach(it=>{{
         const d=document.createElement('div');
         d.className='dish';
         d.innerHTML=`<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
                      <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>`;
         list.appendChild(d);
-      });
-    }
-    function updateCart(){
+      }});
+    }}
+
+    function updateCart(){{
       const listBox=document.getElementById('cart-list');
       const totalBox=document.getElementById('cart-total');
       listBox.innerHTML=''; let total=0;
-      cart.forEach((it,idx)=>{
-        total+=it.price;
+      cart.forEach(it=>{{
+        total+=it.price*it.qty;
         const row=document.createElement('div'); row.className='cart-item';
-        row.innerHTML=`<span>${it.name}</span><span>${it.price} so'm</span>`;
+        row.innerHTML=`<span>${it.name} (x${it.qty})</span><span>${it.price*it.qty} so'm</span>`;
         listBox.appendChild(row);
-      });
+      }});
       totalBox.textContent=`Jami: ${total} so'm`;
-    }
-    function add(id,name,price){
-      cart.push({id,name,price});
-      tg.showAlert(name + ' qo‘shildi!');
+    }}
+
+    function add(id,name,price){{
+      const found=cart.find(item=>item.id===id);
+      if(found){{
+        found.qty+=1;
+      }}else{{
+        cart.push({{id,name,price,qty:1}});
+      }}
+      tg.showAlert(name+' qo‘shildi!');
       updateCart();
-    }
-    document.getElementById('send').onclick = async ()=>{
+    }}
+
+    document.getElementById('send').onclick = async ()=>{{
       if(!cart.length) return tg.showAlert('Savatcha bo‘sh!');
-      await fetch('/api/order',{
+      await fetch('/api/order',{{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({table:table, items:cart})
-      });
+        headers:{{'Content-Type':'application/json'}},
+        body: JSON.stringify({{table:table, items:cart}})
+      }});
       tg.showAlert('Buyurtma yuborildi!');
       cart=[]; updateCart();
-    };
+    }};
+
     loadMenu();
+  </script>
+</body>
+</html>"""
+    return web.Response(text=html, content_type="text/html")
+
+# ---------- admin panel ----------
+async def admin_panel(request: web.Request):
+    html = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Admin panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px}
+    .form,.list{background:#fff;margin:10px 0;padding:15px;border-radius:8px}
+    input,button{width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px}
+    button{background:#007bff;color:#fff;cursor:pointer}
+    img{width:60px;height:60px;object-fit:cover;border-radius:4px}
+    .item{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+  </style>
+</head>
+<body>
+  <h2>Admin panel</h2>
+  <div class="form">
+    <h3>Taom qo‘shish</h3>
+    <input type="text" id="name" placeholder="Nomi">
+    <input type="number" id="price" placeholder="Narxi">
+    <input type="file" id="image" accept="image/*">
+    <button onclick="addDish()">➕ Qo‘shish</button>
+  </div>
+  <div class="list">
+    <h3>Taomlar</h3>
+    <div id="list"></div>
+  </div>
+  <script>
+    const tg = window.Telegram.WebApp; tg.expand();
+    async function load(){
+      const res = await fetch('/api/menu');
+      const data = await res.json();
+      const box = document.getElementById('list');
+      box.innerHTML = '';
+      data.forEach(d=>{
+        const b = document.createElement('div'); b.className='item';
+        b.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px">
+            <img src="${d.image || 'https://via.placeholder.com/60'}">
+            <div>${d.name} – ${d.price} so'm</div>
+          </div>
+          <button onclick="delDish(${d.id})">🗑️</button>`;
+        box.appendChild(b);
+      });
+    }
+    async function addDish(){
+      const name  = document.getElementById('name').value.trim();
+      const price = document.getElementById('price').value;
+      const file  = document.getElementById('image').files[0];
+      if(!name || !price){ tg.showAlert('Nomi va narxi majburiy'); return; }
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('price', price);
+      if(file) fd.append('image', file);
+      await fetch('/api/admin/add', { method:'POST', body: fd });
+      tg.showAlert('Qo‘shildi!'); load();
+    }
+    async function delDish(id){
+      await fetch('/api/admin/delete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id})
+      });
+      tg.showAlert('O‘chirildi!'); load();
+    }
+    load();
   </script>
 </body>
 </html>"""
@@ -210,17 +306,52 @@ async def mini_app(request: web.Request):
 async def api_menu(request: web.Request):
     async with async_session() as s:
         rows = (await s.execute(select(Menu))).scalars().all()
-    return web.json_response([{"id": r.id, "name": r.name, "price": r.price} for r in rows])
+    return web.json_response([{"id": r.id, "name": r.name, "price": r.price, "image": r.image} for r in rows])
 
 async def api_order(request: web.Request):
     data = await request.json()
     table = data.get("table", "Noma’lum")
     items = data.get("items", [])
-    total = sum(it["price"] for it in items)
+    total = sum(it["price"] * it.get("qty", 1) for it in items)
     text = (f"📥 Yangi buyurtma (mini-app)!\n🪑 Stol: <b>{table}</b>\n\n" +
-            "\n".join(f"{i+1}. {it['name']} – {it['price']} so‘m" for i, it in enumerate(items)) +
+            "\n".join(f"{i+1}. {it['name']} (x{it.get('qty',1)}) – {it['price']*it.get('qty',1)} so‘m" for i, it in enumerate(items)) +
             f"\n\n💰 Jami: <b>{total}</b> so‘m")
     await send_to_admin(text)
+    return web.json_response({"ok": True})
+
+# ---------- admin APIs ----------
+import aiofiles
+from pathlib import Path
+
+async def api_admin_add(request: web.Request):
+    reader = await request.multipart()
+    name, price, img_path = "", 0, None
+    async for field in reader:
+        if field.name == "name":
+            name = (await field.read()).decode()
+        elif field.name == "price":
+            price = int((await field.read()).decode())
+        elif field.name == "image" and field.filename:
+            ext = Path(field.filename).suffix
+            img_path = f"/tmp/{field.filename}"
+            async with aiofiles.open(img_path, 'wb') as f:
+                async for chunk in field.iter_chunked(1024):
+                    await f.write(chunk)
+    async with async_session() as s:
+        s.add(Menu(name=name, price=price, image=img_path))
+        await s.commit()
+    return web.json_response({"ok": True})
+
+async def api_admin_delete(request: web.Request):
+    data = await request.json()
+    idx = data.get("id")
+    async with async_session() as s:
+        row = (await s.execute(select(Menu).where(Menu.id == idx))).scalar_one_or_none()
+        if row:
+            if row.image and os.path.isfile(row.image):
+                os.remove(row.image)
+            await s.delete(row)
+            await s.commit()
     return web.json_response({"ok": True})
 
 # ---------- webhook ----------
@@ -237,9 +368,12 @@ def create_app(argv=None):
     app = web.Application()
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
-    app.router.add_get("/", mini_app)
+    app.router.add_get("/", mini_app)               # client
+    app.router.add_get("/admin", admin_panel)       # admin
     app.router.add_get("/api/menu", api_menu)
     app.router.add_post("/api/order", api_order)
+    app.router.add_post("/api/admin/add", api_admin_add)
+    app.router.add_post("/api/admin/delete", api_admin_delete)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(
         app, path=f"/bot{BOT_TOKEN.split(':')[1]}")
     return app
