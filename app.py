@@ -145,7 +145,7 @@ async def mini_app(request: web.Request):
                 <div><strong>${{item.name}}</strong></div>
                 <div>${{item.price}} so'm</div>
               </div>
-              <button onclick="addCart(${{item.id}},'${{item.name}}',${{item.price}})">+</button>`;
+              <button onclick="addCart(${{item.id}},'{item.name}',${{item.price}})">+</button>`;
             list.appendChild(div);
           }});
         }}
@@ -159,7 +159,7 @@ async def mini_app(request: web.Request):
           if (!cart.length) return tg.showAlert('Savatcha bo‘sh!');
           await fetch('/api/order', {{
             method: 'POST',
-            headers: {{'Content-Type':'application/json'},
+            headers: {{'Content-Type':'application/json'}},
             body: JSON.stringify({{table, items: cart}})
           }});
           tg.showAlert('Buyurtma yuborildi!');
