@@ -71,8 +71,13 @@ async def start_cmd(msg: types.Message):
             text="📋 Menyu (mini-app)",
             web_app=WebAppInfo(url=f"{WEBHOOK_URL}/?table={table}"))]
     ])
+    # old ReplyKeyboard ni tozalaymiz
     await msg.answer(
-        f"Salom 👋\n🪑 Stol: <b>{table}</b>\nBuyurtma berish uchun menyuni tanlang:",
+        f"Salom 👋\n🪑 Stol: <b>{table}</b>",
+        parse_mode="HTML",
+        reply_markup=types.ReplyKeyboardRemove())          # ← tozalash
+    await msg.answer(
+        "Quyidagi tugma orqali menyuni oching:",
         reply_markup=web_app)
 
 @dp.message(Command("add"))
