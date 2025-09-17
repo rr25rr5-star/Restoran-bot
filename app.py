@@ -145,7 +145,7 @@ async def mini_app(request: web.Request):
                 <div><strong>${{item.name}}</strong></div>
                 <div>${{item.price}} so'm</div>
               </div>
-              <button onclick="addCart(${{item.id}},'{item.name}',${{item.price}})">+</button>`;
+              <button onclick="addCart(${item.id},'`+item.name+`',${item.price})">+</button>`;
             list.appendChild(div);
           }});
         }}
