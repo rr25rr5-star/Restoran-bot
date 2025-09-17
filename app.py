@@ -128,18 +128,19 @@ async def confirm(cb: types.CallbackQuery):
     user_orders[uid]["items"].clear()
 
 # ---------- webhook aiohttp ----------
-@asynccontextmanager
-async def lifespan(app: web.Application):
+async def on_startup(app: web.Application):
     await init_db()
     generate_qr_codes()
     await bot.set_webhook(f"{WEBHOOK_URL}/bot{BOT_TOKEN.split(':')[1]}")
-    yield
+
+async def on_cleanup(app: web.Application):
     await bot.delete_webhook()
     await engine.dispose()
 
 def create_app(argv=None):
     app = web.Application()
-    app.cleanup_ctx.append(lifespan)
+    app.on_startup.append(on_startup)
+    app.on_cleanup.append(on_cleanup)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=f"/bot{BOT_TOKEN.split(':')[1]}")
     return app
 
