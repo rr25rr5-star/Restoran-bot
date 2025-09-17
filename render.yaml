@@ -6,6 +6,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:create_app() -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID
@@ -23,8 +25,4 @@ services:
 
 databases:
   - name: restaurant_db
-<<<<<<< Updated upstream:render.yaml
-    plan: basic-1gb   # <-- yangi plan
-=======
-    plan: basic-1gb   # <-- yangi plan
->>>>>>> Stashed changes:render.yaml.txt
+    plan: basic-1gb
