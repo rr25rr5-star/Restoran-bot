@@ -110,29 +110,32 @@ async def mini_app(request: web.Request):
     const tg = window.Telegram.WebApp; tg.expand();
     const table = new URLSearchParams(location.search).get("table");
     let cart = [];
-    async function loadMenu(){
+    async function loadMenu(){{
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
-      data.forEach(it=>{
+      data.forEach(it=>{{
         const d=document.createElement('div');
         d.className='dish';
         d.innerHTML=`<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
                      <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>`;
         list.appendChild(d);
-      });
-    }
-    function add(id,name,price){ cart.push({id,name,price}); tg.showAlert(name + ' qo‘shildi!'); }
-    document.getElementById('send').onclick = async ()=>{
+      }});
+    }}
+    function add(id,name,price){{
+      cart.push({{id:id,name:name,price:price}});
+      tg.showAlert(name + ' qo‘shildi!');
+    }}
+    document.getElementById('send').onclick = async ()=>{{
       if(!cart.length) return tg.showAlert('Savatcha bo‘sh!');
-      await fetch('/api/order',{
+      await fetch('/api/order',{{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({table, items: cart})
-      });
+        headers:{{'Content-Type':'application/json'}},
+        body: JSON.stringify({{table:table, items:cart}})
+      }});
       tg.showAlert('Buyurtma yuborildi!');
       cart=[];
-    };
+    }};
     loadMenu();
   </script>
 </body>
