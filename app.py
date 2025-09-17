@@ -140,6 +140,7 @@ async def confirm(cb: types.CallbackQuery):
 # ---------- client mini-app ----------
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
+    # JavaScript qismi f-string EMAS – oddiy qator
     html = f"""
 <!DOCTYPE html>
 <html>
@@ -149,17 +150,17 @@ async def mini_app(request: web.Request):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}}
-    .dish{{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}}
-    button{{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}}
-    .cart{{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}}
-    .cart-header{{font-weight:bold;margin-bottom:5px}}
-    .cart-item{{display:flex;justify-content:space-between;padding:2px 0}}
-    .cart-total{{font-weight:bold;margin-top:5px}}
+    body{font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;margin:0;padding:20px 20px 180px 20px}
+    .dish{background:#fff;margin:10px 0;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+    button{background:#007bff;color:#fff;border:none;padding:10px 15px;border-radius:6px;cursor:pointer}
+    .cart{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ccc;padding:10px 15px;max-height:180px;overflow-y:auto;font-size:14px;z-index:999}
+    .cart-header{font-weight:bold;margin-bottom:5px}
+    .cart-item{display:flex;justify-content:space-between;padding:2px 0}
+    .cart-total{font-weight:bold;margin-top:5px}
   </style>
 </head>
 <body>
-  <h2>Menyu – Stol: {table}</h2>
+  <h2>Menyu – Stol: """ + table + """</h2>
   <div id="list"></div>
   <div id="cart" class="cart">
     <div class="cart-header">🛒 Savatcha</div>
@@ -170,55 +171,52 @@ async def mini_app(request: web.Request):
   <script>
     const tg = window.Telegram.WebApp; tg.expand();
     const table = new URLSearchParams(location.search).get("table");
-    let cart = []; // {id,name,price,qty}
+    let cart = []; // id,name,price,qty
 
-    async function loadMenu(){{
+    async function loadMenu(){
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
-      data.forEach(it=>{{
+      data.forEach(it=>{
         const d=document.createElement('div');
         d.className='dish';
-        d.innerHTML=`<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
-                     <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>`;
+        d.innerHTML=` + "`" + `<div><div><strong>${it.name}</strong></div><div>${it.price} so'm</div></div>
+                     <button onclick="add(${it.id},'` + "`" + `+it.name+` + "`" + `',${it.price})">+</button>` + "`" + `;
         list.appendChild(d);
-      }});
-    }}
+      });
+    }
 
-    function updateCart(){{
+    function updateCart(){
       const listBox=document.getElementById('cart-list');
       const totalBox=document.getElementById('cart-total');
       listBox.innerHTML=''; let total=0;
-      cart.forEach(it=>{{
+      cart.forEach(it=>{
         total+=it.price*it.qty;
         const row=document.createElement('div'); row.className='cart-item';
-        row.innerHTML=`<span>${it.name} (x${it.qty})</span><span>${it.price*it.qty} so'm</span>`;
+        row.innerHTML=` + "`" + `<span>${it.name} (x${it.qty})</span><span>${it.price*it.qty} so'm</span>` + "`" + `;
         listBox.appendChild(row);
-      }});
-      totalBox.textContent=`Jami: ${total} so'm`;
-    }}
+      });
+      totalBox.textContent=` + "`" + `Jami: ${total} so'm` + "`" + `;
+    }
 
-    function add(id,name,price){{
+    function add(id,name,price){
       const found=cart.find(item=>item.id===id);
-      if(found){{
-        found.qty+=1;
-      }}else{{
-        cart.push({{id,name,price,qty:1}});
-      }}
+      if(found){ found.qty+=1; }
+      else { cart.push({id,name,price,qty:1}); }
       tg.showAlert(name+' qo‘shildi!');
       updateCart();
-    }}
+    }
 
-    document.getElementById('send').onclick = async ()=>{{
+    document.getElementById('send').onclick = async ()=>{
       if(!cart.length) return tg.showAlert('Savatcha bo‘sh!');
-      await fetch('/api/order',{{
+      await fetch('/api/order',{
         method:'POST',
-        headers:{{'Content-Type':'application/json'}},
-        body: JSON.stringify({{table:table, items:cart}})
-      }});
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({table:table, items:cart})
+      });
       tg.showAlert('Buyurtma yuborildi!');
       cart=[]; updateCart();
-    }};
+    };
 
     loadMenu();
   </script>
