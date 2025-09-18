@@ -362,7 +362,10 @@ async def api_admin_add_file(request: web.Request):
             name = f"{field.name}_{asyncio.get_event_loop().time()}{ext}"
             path = UPLOAD_DIR / name
             async with aiofiles.open(path, 'wb') as f:
-                async for chunk in field.iter_chunked(1024):
+                while True:
+                    chunk = await field.read_chunk(1024)
+                    if not chunk:
+                        break
                     await f.write(chunk)
             data['image'] = name
         else:
