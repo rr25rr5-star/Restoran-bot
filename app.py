@@ -10,6 +10,7 @@ from aiohttp import web
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, func, select
+from sqlalchemy import text   # eng yuqoriga, boshqa importlardan keyin
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.filters import Command
@@ -58,6 +59,10 @@ class Order(Base):
 # ---------- INIT ----------
 async def init_db():
     async with engine.begin() as conn:
+        # Eski jadvalni o‘chiramiz (bepul uchun)
+        await conn.execute(text("DROP TABLE IF EXISTS menu CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS orders CASCADE"))
+        # Yangi jadvalni yaratamiz
         await conn.run_sync(Base.metadata.create_all)
 
 # ---------- QR ----------
