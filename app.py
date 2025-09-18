@@ -352,7 +352,6 @@ async def api_order(request: web.Request):
             f"\n\n💰 Jami: <b>{total}</b> so‘m")
     await send_to_admin(text)
     return web.json_response({"ok": True})
-
 async def api_admin_add_file(request: web.Request):
     reader = await request.multipart()
     data = {}
@@ -368,6 +367,8 @@ async def api_admin_add_file(request: web.Request):
                         break
                     await f.write(chunk)
             data['image'] = name
+        elif field.name == 'price':
+            data['price'] = int((await field.read()).decode())
         else:
             data[field.name] = (await field.read()).decode()
     async with async_session() as s:
