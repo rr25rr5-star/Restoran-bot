@@ -299,7 +299,7 @@ async def admin_panel(request: web.Request):
           </div>`);
       });
     }
-    async function addDish(){
+     async function addDish(){
       const fd = new FormData();
       fd.append('name', document.getElementById('name').value.trim());
       fd.append('price', document.getElementById('price').value);
@@ -308,7 +308,9 @@ async def admin_panel(request: web.Request):
       const file = document.getElementById('imgFile').files[0];
       if(file) fd.append('image', file);
       await fetch('/api/admin/add-file', {method:'POST', body: fd});
-      tg.showAlert('Qo‘shildi!'); loadMenu();
+      tg.showAlert('Qo‘shildi!');
+      setTimeout(() => location.reload(), 500);  // sahifa yangilanadi
+}
     }
     async function delItem(id){
       await fetch('/api/admin/delete', {
