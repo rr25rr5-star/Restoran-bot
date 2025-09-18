@@ -125,15 +125,8 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 async def mini_app(request: web.Request):
     table = request.query.get("table", "Noma’lum")
-    html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Menyu</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
+    # CSS ni f-string emas, oddiy qator bilan
+    css = """
     body{margin:0;font-family:Arial;background:#f2f2f2;padding:20px 20px 180px 20px}
     .cat{margin-top:20px;font-weight:bold}
     .dish{background:#fff;margin:8px 0;padding:10px;border-radius:8px;display:flex;gap:10px;align-items:center}
@@ -146,7 +139,17 @@ async def mini_app(request: web.Request):
     .cart-header{font-weight:bold;margin-bottom:5px}
     .cart-item{display:flex;justify-content:space-between;padding:2px 0}
     .cart-total{font-weight:bold;margin-top:5px}
-  </style>
+    """.strip()
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Menyu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>{css}</style>
 </head>
 <body>
   <h2>Menyu – Stol: """ + table + """</h2>
@@ -162,72 +165,72 @@ async def mini_app(request: web.Request):
     const table = new URLSearchParams(location.search).get("table");
     let cart = [];
 
-    async function loadMenu(){
+    async function loadMenu(){{
       const res = await fetch('/api/menu');
       const data = await res.json();
       const list = document.getElementById('list');
       list.innerHTML = '';
       const cats = [...new Set(data.map(it=>it.category))];
-      cats.forEach(cat=>{
-        list.insertAdjacentHTML('beforeend', `<div class="cat">${cat.toUpperCase()}</div>`);
-        data.filter(it=>it.category===cat).forEach(it=>{
+      cats.forEach(cat=>{{
+        list.insertAdjacentHTML('beforeend', `<div class="cat">${{cat.toUpperCase()}}</div>`);
+        data.filter(it=>it.category===cat).forEach(it=>{{
           list.insertAdjacentHTML('beforeend', `
             <div class="dish">
-              <img src="/static/images/${it.image}" onerror="this.src='https://via.placeholder.com/60'"/>
+              <img src="/static/images/${{it.image}}" onerror="this.src='https://via.placeholder.com/60'"/>
               <div class="info">
-                <div>${it.name}</div>
-                <div>${it.price} so'm</div>
-                <small>${it.description}</small>
+                <div>${{it.name}}</div>
+                <div>${{it.price}} so'm</div>
+                <small>${{it.description}}</small>
               </div>
-              <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>
+              <button onclick="add(${{it.id}},'${{it.name}}',${{it.price}})">+</button>
             </div>`);
-        });
-      });
-    }
+        }});
+      }});
+    }}
 
-    function updateCart(){
+    function updateCart(){{
       const listBox=document.getElementById('cart-list');
       const totalBox=document.getElementById('cart-total');
       listBox.innerHTML=''; let total=0;
-      cart.forEach(it=>{
+      cart.forEach(it=>{{
         total+=it.price*it.qty;
         listBox.insertAdjacentHTML('beforeend', `
           <div class="cart-item">
             <span>
-              <button onclick="dec(${it.id})">–</button>
-              ${it.name} (x${it.qty})
-              <button onclick="add(${it.id},'${it.name}',${it.price})">+</button>
+              <button onclick="dec(${{it.id}})">–</button>
+              ${{it.name}} (x${{it.qty}})
+              <button onclick="add(${{it.id}},'${{it.name}}',${{it.price}})">+</button>
             </span>
-            <span>${it.price*it.qty} so'm</span>
+            <span>${{it.price*it.qty}} so'm</span>
           </div>`);
-      });
-      totalBox.textContent=`Jami: ${total} so'm`;
-    }
+      }});
+      totalBox.textContent=`Jami: ${{total}} so'm`;
+    }}
 
-    function add(id,name,price){
+    function add(id,name,price){{
       const found=cart.find(item=>item.id===id);
-      if(found){ found.qty+=1; }
-      else { cart.push({id,name,price,qty:1}); }
+      if(found){{ found.qty+=1; }}
+      else {{ cart.push({{id,name,price,qty:1}}); }}
       updateCart();
-    }
-    function dec(id){
+    }}
+    function dec(id){{
       const it=cart.find(x=>x.id===id);
       if(!it) return;
       it.qty-=1;
       if(it.qty===0) cart=cart.filter(x=>x.id!==id);
       updateCart();
-    }
+    }}
 
-    document.getElementById('send').onclick = async ()=>{
-      if(!cart.length){ tg.showAlert('Savatcha bo‘sh!'); return; }
-      await fetch('/api/order',{
+    document.getElementById('send').onclick = async ()=>{{
+      if(!cart.length){{ tg.showAlert('Savatcha bo‘sh!'); return; }}
+      await fetch('/api/order',{{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({table:table, items:cart, user_id:tg.initDataUnsafe.user.id})
-      });
+        headers:{{'Content-Type':'application/json'}},
+        body: JSON.stringify({{table:table, items:cart, user_id:tg.initDataUnsafe.user.id}})
+      }});
       tg.showAlert('Buyurtma yuborildi!');
       cart=[]; updateCart();
-    };
+    }};
 
     loadMenu();
   </script>
